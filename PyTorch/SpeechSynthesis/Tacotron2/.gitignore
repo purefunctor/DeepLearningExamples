@@ -2,3 +2,6 @@ __pycache__/
 /checkpoints/
 /output/
 nvlog.json
+sr/day1_wavs
+sr/day2_wavs
+sr/manifest.txt
