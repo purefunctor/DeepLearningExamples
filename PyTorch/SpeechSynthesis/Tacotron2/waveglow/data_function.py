@@ -94,7 +94,7 @@ class MelAudioLoader(torch.utils.data.Dataset):
         return self.get_input_mel_target_audio(*self.manifest_pairs[index])
 
     def __len__(self):
-        return len(self.audiopaths_and_text)
+        return len(self.manifest_pairs)
 
 
 def batch_to_gpu(batch):
