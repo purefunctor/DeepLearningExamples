@@ -25,9 +25,21 @@
 #
 # *****************************************************************************\
 
+from pathlib import Path
 import torch
 import tacotron2_common.layers as layers
-from tacotron2_common.utils import load_wav_to_torch, load_filepaths_and_text, to_gpu
+from tacotron2_common.utils import load_wav_to_torch, to_gpu
+
+
+def load_manifest(manifest_file):
+    pairs = []
+    with open(manifest_file, "r") as f:
+        for line in f.readlines():
+            i, t = line.split(",")
+            i = i.strip()
+            t = t.strip()
+            pairs.append((Path(i), Path(t)))
+    return pairs
 
 
 class MelAudioLoader(torch.utils.data.Dataset):
@@ -37,7 +49,7 @@ class MelAudioLoader(torch.utils.data.Dataset):
     """
 
     def __init__(self, dataset_path, audiopaths_and_text, args):
-        self.audiopaths_and_text = load_filepaths_and_text(dataset_path, audiopaths_and_text)
+        self.manifest_pairs = load_manifest(audiopaths_and_text)
         self.max_wav_value = args.max_wav_value
         self.sampling_rate = args.sampling_rate
         self.stft = layers.TacotronSTFT(
@@ -46,13 +58,7 @@ class MelAudioLoader(torch.utils.data.Dataset):
             args.mel_fmax)
         self.segment_length = args.segment_length
 
-    def get_mel_audio_pair(self, filename):
-        audio, sampling_rate = load_wav_to_torch(filename)
-
-        if sampling_rate != self.stft.sampling_rate:
-            raise ValueError("{} {} SR doesn't match target {} SR".format(
-                sampling_rate, self.stft.sampling_rate))
-
+    def _take_segment(self, audio):
         # Take segment
         if audio.size(0) >= self.segment_length:
             max_audio_start = audio.size(0) - self.segment_length
@@ -70,8 +76,22 @@ class MelAudioLoader(torch.utils.data.Dataset):
 
         return (melspec, audio, len(audio))
 
+    def get_input_mel_target_audio(self, i, t):
+        i_audio, i_sampling_rate = load_wav_to_torch(i)
+        t_audio, t_sampling_rate = load_wav_to_torch(t)
+
+        if i_sampling_rate != self.stft.sampling_rate or t_sampling_rate != self.stft.sampling_rate:
+            raise ValueError("{} {} SR doesn't match target {} SR".format(i_sampling_rate, self.stft.sampling_rate))
+
+        (i_mel, i_audio, i_len) = self._take_segment(i_audio)
+        (_, t_audio, t_len) = self._take_segment(t_audio)
+
+        assert i_len == t_len
+
+        return (i_mel, t_audio, i_len)
+
     def __getitem__(self, index):
-        return self.get_mel_audio_pair(self.audiopaths_and_text[index][0])
+        return self.get_input_mel_target_audio(*self.manifest_pairs[index])
 
     def __len__(self):
         return len(self.audiopaths_and_text)
