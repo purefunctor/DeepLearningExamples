@@ -2,8 +2,7 @@ from waveglow.data_function import MelAudioLoader
 
 class args:
     max_wav_value = 32768.0
-    # FIXME: figure out what to change when increasing the sample rate
-    sampling_rate = 44100
+    sampling_rate = 22050
     segment_length = 4000
     filter_length = 1024
     hop_length = 256
@@ -13,4 +12,5 @@ class args:
     mel_fmax = 8000.0
 
 audio_loader = MelAudioLoader("./", "sr/manifest.txt", args)
-print(audio_loader[0])
+spectogram, audio, length = audio_loader[0]
+audio_loader[0]

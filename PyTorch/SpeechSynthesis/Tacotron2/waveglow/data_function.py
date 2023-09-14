@@ -58,15 +58,22 @@ class MelAudioLoader(torch.utils.data.Dataset):
             args.mel_fmax)
         self.segment_length = args.segment_length
 
-    def _take_segment(self, audio):
-        # Take segment
+    def _take_start(self, audio):
         if audio.size(0) >= self.segment_length:
+            max_audio_start = audio.size(0) - self.segment_length
+            audio_start = torch.randint(0, max_audio_start + 1, size=(1,)).item()
+            return audio_start
+        else:
+            return None
+
+    def _take_segment(self, audio, audio_start):
+        if audio_start is not None:
             max_audio_start = audio.size(0) - self.segment_length
             audio_start = torch.randint(0, max_audio_start + 1, size=(1,)).item()
             audio = audio[audio_start:audio_start+self.segment_length]
         else:
             audio = torch.nn.functional.pad(
-                audio, (0, self.segment_length - audio.size(0)), 'constant').data
+                audio, (0, self.segment_length - audio.size(0)), 'constant').data    
 
         audio = audio / self.max_wav_value
         audio_norm = audio.unsqueeze(0)
@@ -83,8 +90,10 @@ class MelAudioLoader(torch.utils.data.Dataset):
         if i_sampling_rate != self.stft.sampling_rate or t_sampling_rate != self.stft.sampling_rate:
             raise ValueError("{} {} SR doesn't match target {} SR".format(i_sampling_rate, self.stft.sampling_rate))
 
-        (i_mel, i_audio, i_len) = self._take_segment(i_audio)
-        (_, t_audio, t_len) = self._take_segment(t_audio)
+        audio_start = self._take_start(i_audio)
+
+        (i_mel, i_audio, i_len) = self._take_segment(i_audio, audio_start)
+        (_, t_audio, t_len) = self._take_segment(t_audio, audio_start)
 
         assert i_len == t_len
 
