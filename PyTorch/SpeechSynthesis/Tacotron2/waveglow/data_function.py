@@ -66,6 +66,13 @@ class MelAudioLoader(torch.utils.data.Dataset):
         else:
             return None
 
+    def _take_mel(self, audio):
+        audio_norm = audio.unsqueeze(0)
+        audio_norm = torch.autograd.Variable(audio_norm, requires_grad=False)
+        melspec = self.stft.mel_spectrogram(audio_norm)
+        melspec = melspec.squeeze(0)
+        return melspec
+
     def _take_segment(self, audio, audio_start):
         if audio_start is not None:
             max_audio_start = audio.size(0) - self.segment_length
@@ -76,10 +83,7 @@ class MelAudioLoader(torch.utils.data.Dataset):
                 audio, (0, self.segment_length - audio.size(0)), 'constant').data    
 
         audio = audio / self.max_wav_value
-        audio_norm = audio.unsqueeze(0)
-        audio_norm = torch.autograd.Variable(audio_norm, requires_grad=False)
-        melspec = self.stft.mel_spectrogram(audio_norm)
-        melspec = melspec.squeeze(0)
+        melspec = self._take_mel(audio)
 
         return (melspec, audio, len(audio))
 
@@ -99,11 +103,24 @@ class MelAudioLoader(torch.utils.data.Dataset):
 
         return (i_mel, t_audio, i_len)
 
+    def take_at(self, i, t, *, offset, length):
+        i_audio, _ = load_wav_to_torch(i)
+        t_audio, _ = load_wav_to_torch(t)
+
+        i_audio = i_audio[offset:offset+length] / self.max_wav_value
+        t_audio = t_audio[offset:offset+length] / self.max_wav_value
+
+        i_mel = self._take_mel(i_audio)
+        t_mel = self._take_mel(t_audio)
+
+        return (i_audio, i_mel, t_audio, t_mel)
+
     def __getitem__(self, index):
+        index = index // 10
         return self.get_input_mel_target_audio(*self.manifest_pairs[index])
 
     def __len__(self):
-        return len(self.manifest_pairs)
+        return len(self.manifest_pairs * 10)
 
 
 def batch_to_gpu(batch):

@@ -77,7 +77,7 @@ def get_model(model_name, model_config, cpu_run,
             model = Tacotron2(**model_config)
     elif model_name == 'WaveGlow':
 
-        model = WaveGlow(**model_config)
+        model = torch.hub.load('NVIDIA/DeepLearningExamples:torchhub', 'nvidia_waveglow', model_math='fp32')
         if forward_is_infer:
             model.forward = model.infer
 
