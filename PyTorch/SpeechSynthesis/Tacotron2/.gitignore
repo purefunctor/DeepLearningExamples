@@ -3,5 +3,7 @@ __pycache__/
 /output/
 nvlog.json
 sr/day1_wavs
+sr/day1_original
 sr/day2_wavs
+sr/day2_original
 sr/manifest.txt
